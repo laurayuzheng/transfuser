@@ -231,7 +231,7 @@ class ScenarioManager(object):
 
         ResultOutputProvider(self, global_result)
 
-    def run_scenario_cosim(self, sync_obj, max_ticks=1000):
+    def run_scenario_cosim(self, sync_obj, max_ticks=None):
         """
         Trigger the start of the scenario and wait for it to finish/fail
         """
@@ -251,12 +251,13 @@ class ScenarioManager(object):
                     timestamp = snapshot.timestamp
             
             try:
-                if timestamp and ticks < max_ticks:
+                if timestamp:
                     self._tick_cosim_scenario(timestamp, sync_obj)
                     ticks += 1
                 
-                if ticks >= max_ticks:
+                if max_ticks is not None and ticks >= max_ticks:
                     break 
+
             except:
                 break
                 # self._tick_scenario(timestamp)

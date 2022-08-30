@@ -34,6 +34,9 @@ do
   do 
     # scenario_town_basename="${town_scenario%.*}"
     scenario_town_basename=$(basename ${town_scenario%.*})
+    # if [[ "$scenario_town_basename" = "Town01_Scenario1"  ||  "$scenario_town_basename" = "Town02_Scenario1" ]]; then
+    #   continue
+    # fi
     # echo "Town scenario basename: ${scenario_town_basename}"
     export SCENARIOS="${SCENARIO_SCENARIO}/${scenario_town_basename}.json"
     export ROUTES="${SCENARIO_ROUTES}/${scenario_town_basename}.xml"
