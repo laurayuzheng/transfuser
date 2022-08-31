@@ -22,7 +22,7 @@ from leaderboard.envs.sensor_interface import CallBack, OpenDriveMapReader, Spee
 # Use this line instead to run WOR
 #from leaderboard1.leaderboard.envs.sensor_interface import (CallBack, StitchCameraReader, OpenDriveMapReader, SpeedometerReader, SensorConfigurationInvalid)
 
-DATAGEN = int(os.environ.get('DATAGEN'))
+DATAGEN = int(os.environ.get('DATAGEN')) if os.environ.get('DATAGEN') is not None else 0
 MAX_ALLOWED_RADIUS_SENSOR = 10.0
 
 SENSORS_LIMITS = {

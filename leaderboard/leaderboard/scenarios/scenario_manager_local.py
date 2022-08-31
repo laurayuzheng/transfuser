@@ -375,3 +375,147 @@ class ScenarioManager(object):
                 CarlaDataProvider.get_world().tick(self._timeout)
 
             # sync_obj.tick()
+            
+    def run_tick_cosim_rl(self, sync_obj, action):
+        """
+        Trigger the start of the scenario and wait for it to finish/fail
+        """
+
+        # self._watchdog.start()
+        self._running = True
+
+        while self._running:
+            timestamp = None
+            world = CarlaDataProvider.get_world()
+            if world:
+                snapshot = world.get_snapshot()
+                if snapshot:
+                    timestamp = snapshot.timestamp
+            
+            try:
+                if timestamp:
+                    # print("Timestamp exists, using action ", action)
+                    img, state, player_ind, done = self.tick_cosim_scenario_rl(timestamp, sync_obj, action)
+                    return img, state, player_ind, done
+
+            except:
+                print("Exception at cosim tick")
+                self._running = False 
+                raise
+                # self._tick_scenario(timestamp)
+
+
+    def tick_cosim_scenario_rl(self, timestamp, sync_obj, action, warmup=False):
+        """
+        Run next tick of scenario and the agent and tick the world.
+        """ 
+        if self._running:
+
+            # self._watchdog.update()
+            # Update game time and actor information
+            GameTime.on_carla_tick(timestamp)
+            CarlaDataProvider.on_carla_tick()
+
+            try:
+                # print("Number of ego vehicles: ", len(self.ego_vehicles))
+                ticked_sync = False 
+                if not sync_obj.sumo.player_id:
+                    print("1 Adding ego vehicles to SUMO.. ")
+                    carla_actor = self.ego_vehicles[0]
+                    id = carla_actor.id
+                    type_id = BridgeHelper.get_sumo_vtype(carla_actor)
+                    # color = self._player.attributes.get('color', None) 
+                    color = None
+                    if type_id is not None:
+                        sumo_actor_id = sync_obj.sumo.spawn_actor(type_id, color)
+                        if sumo_actor_id != INVALID_ACTOR_ID:
+                            sync_obj.carla2sumo_ids[id] = sumo_actor_id
+                            sync_obj.carla_sumo2carla_ids[sumo_actor_id] = id
+                            sync_obj.sumo.subscribe(sumo_actor_id)
+                    
+                        sync_obj._player_sumo_id = sumo_actor_id
+                        sync_obj.sumo.player_id = sumo_actor_id
+                        sync_obj.carla.player_id = id 
+                        ticked_sync = True 
+
+                        carla_actor = sync_obj.carla.get_actor(id)
+
+                        sumo_transform = BridgeHelper.get_sumo_transform(carla_actor.get_transform(),
+                                                                        carla_actor.bounding_box.extent)
+                        sumo_lights = None
+
+                        # print("Synchronizing vehicle ", sumo_actor_id)
+                        sync_obj.sumo.synchronize_vehicle(sumo_actor_id, sumo_transform, sumo_lights)
+                        sync_obj.sumo.tick()
+                #         sync_obj.tick()
+
+                ego_action, img, state, player_ind = self._agent._agent.forward_step(action)
+
+            # Special exception inside the agent that isn't caused by the agent
+            except SensorReceivedNoData as e:
+                self._running = False 
+                raise RuntimeError(e)
+
+            except Exception as e:
+                self._running = False 
+                raise AgentError(e)
+
+            self.ego_vehicles[0].apply_control(ego_action)
+
+            # Tick scenario
+            self.scenario_tree.tick_once()
+
+            if self._debug_mode:
+                print("\n")
+                py_trees.display.print_ascii_tree(
+                    self.scenario_tree, show_status=True)
+                sys.stdout.flush()
+
+            if self.scenario_tree.status != py_trees.common.Status.RUNNING:
+                self._running = False 
+
+            spectator = CarlaDataProvider.get_world().get_spectator()
+            ego_trans = self.ego_vehicles[0].get_transform()
+            spectator.set_transform(carla.Transform(ego_trans.location + carla.Location(z=50),
+                                                        carla.Rotation(pitch=-90)))
+
+        if self._running:
+            
+            if sync_obj.sumo.player_has_result() == False: 
+                print("2 Adding ego vehicles to SUMO.. ")
+                carla_actor = self.ego_vehicles[0]
+                id = carla_actor.id
+                type_id = BridgeHelper.get_sumo_vtype(carla_actor)
+                # color = self._player.attributes.get('color', None) 
+                color = None
+                if type_id is not None:
+                    sumo_actor_id = sync_obj.sumo.spawn_actor(type_id, color)
+                    if sumo_actor_id != INVALID_ACTOR_ID:
+                        sync_obj.carla2sumo_ids[id] = sumo_actor_id
+                        sync_obj.carla_sumo2carla_ids[sumo_actor_id] = id
+                        sync_obj.sumo.subscribe(sumo_actor_id)
+                
+                    sync_obj._player_sumo_id = sumo_actor_id
+                    sync_obj.sumo.player_id = sumo_actor_id
+                    sync_obj.carla.player_id = id 
+
+                    ticked_sync = True
+
+                    carla_actor = sync_obj.carla.get_actor(id)
+                    sumo_transform = BridgeHelper.get_sumo_transform(carla_actor.get_transform(),
+                                                                    carla_actor.bounding_box.extent)
+                    sumo_lights = None
+
+                    # print("Synchronizing vehicle ", sumo_actor_id)
+                    sync_obj.sumo.synchronize_vehicle(sumo_actor_id, sumo_transform, sumo_lights)
+
+                    sync_obj.sumo.tick()
+
+            if ticked_sync:
+                sync_obj.tick()
+            else:
+                CarlaDataProvider.get_world().tick(self._timeout)
+
+            # sync_obj.tick()
+
+        return img, state, player_ind, not self._running
