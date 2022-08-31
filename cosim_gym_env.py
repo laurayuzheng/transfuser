@@ -13,6 +13,7 @@ from gym import spaces
 import numpy as np
 import gc
 import glob
+import random
 
 import carla
 import signal
@@ -96,8 +97,9 @@ class CosimEnv(gym.Env):
         self.carla_simulation = CarlaSimulation(args.carla_host, args.carla_port, 1/20)
         self.cosim_manager = CosimManager(args, self.carla_simulation)
         self.num_vehicles = 5
-        self.max_steps = 500
+        self.max_steps = 1000
         self.step_count = 0
+        self.print_update_freq = 200
 
         print("Environment initialized ")
         # self.reset()
@@ -136,12 +138,16 @@ class CosimEnv(gym.Env):
         return gym.spaces.Dict(spaces_dict)
 
     def step(self, action):
+        # print("Stepping in environment.. ")
         action = np.squeeze(action)
         topdown, traffic_state, _, done = self.cosim_manager.tick_scenario(action)
         topdown = topdown.cpu()
         traffic_state = np.array(traffic_state)
         traffic_state = np.pad(traffic_state, (0,100-traffic_state.shape[0]), 'constant')
         self.step_count += 1
+        if self.step_count % self.print_update_freq == 0: 
+            print("Total steps: ", self.step_count)
+            print("Action: ", action)
         
         observation = {
             'topdown': topdown, 
@@ -270,6 +276,7 @@ class CosimManager(object):
         self.scenario = None 
 
         self.routes = glob.glob(os.path.join(args.routes, "**/*.xml"))
+        random.shuffle(self.routes)
         self.routes_index = 0
 
 
@@ -859,16 +866,16 @@ if __name__ == "__main__":
     callback = CallbackList([checkpoint_callback])
 
     # model = PPO('MlpPolicy', env, verbose=1)
-    model = PPO('MultiInputPolicy', env, verbose=1, tensorboard_log="./tfuse_ppo_results/")
+    # model = PPO('MultiInputPolicy', env, verbose=1, tensorboard_log="./tfuse_ppo_results/")
     # model = PPO.load('ppo_logs/rl_model_34000_steps', env, verbose=1)
     # steps_left = 1000000 - 34000
     # # model.learn(total_timesteps=1_000_000, tb_log_name="train_mil", callback=callback)
     # model.learn(total_timesteps=steps_left, tb_log_name="train_mil_continue", callback=callback)
 
-    # model_path = f"ppo_logs/rl_model_114000_steps"
-    # log_path = f"accel_ppo_tensorboard/"
-    # model = PPO.load(model_path, tensorboard_log=log_path)
-    # model.set_env(env)
+    model_path = f"tfuse_ppo_models/rl_model_34000_steps"
+    log_path = f"tfuse_ppo_results/"
+    model = PPO.load(model_path, tensorboard_log=log_path)
+    model.set_env(env)
 
     print("Training the agent.. ")
     model.learn(total_timesteps=500_000, tb_log_name="train_tfuse", 

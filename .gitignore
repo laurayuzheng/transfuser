@@ -167,3 +167,6 @@ traffic_dataset/
 zicQsW5O
 zikswyGT
 data_json_files/
+tfuse*
+train_logs/
+*.zip

@@ -382,6 +382,10 @@ class ScenarioManager(object):
         """
 
         # self._watchdog.start()
+        self.start_system_time = time.time()
+        self.start_game_time = GameTime.get_time()
+
+        # self._watchdog.start()
         self._running = True
 
         while self._running:

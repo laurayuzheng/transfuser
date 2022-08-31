@@ -215,7 +215,9 @@ class AccelAgent(DataAgent):
         if self.synchronization.sumo.player_has_result():
             state, player_ind = self.synchronization.get_state()
             tick_data = self.tick(input_data)
-            self.shuffle_weather()
+
+            if self.step % 10 == 0:
+                self.shuffle_weather()
             
         return control, tick_data['topdown'], state, player_ind
 

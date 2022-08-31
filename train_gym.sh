@@ -28,7 +28,7 @@ python cosim_gym_env.py \
 # --scenarios=${SCENARIOS}  \
 # --routes=${ROUTES} \
 # --repetitions=${REPETITIONS} \
---track=${CHALLENGE_TRACK_CODENAME} \
+# --track=${CHALLENGE_TRACK_CODENAME} \
 # --checkpoint=${CHECKPOINT_ENDPOINT} \
 # --agent=${TEAM_AGENT} \
 # --agent-config=${TEAM_CONFIG} \
